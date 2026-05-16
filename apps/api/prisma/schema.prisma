@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+  // Looks for .env in apps/api/ first, then falls back to root
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Audit {
+  id          String      @id @default(uuid())
+  url         String
+  status      AuditStatus @default(QUEUED)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  completedAt DateTime?
+  email       String?
+
+  // Scores
+  scoreOverall     Int @default(0)
+  scorePerformance Int @default(0)
+  scoreSeo         Int @default(0)
+  scoreCro         Int @default(0)
+  scoreMobile      Int @default(0)
+  scoreUx          Int @default(0)
+  scoreSecurity    Int @default(0)
+
+  // Raw JSON data blobs
+  speedData       Json?
+  seoData         Json?
+  mobileData      Json?
+  securityData    Json?
+  analyticsData   Json?
+  appsData        Json?
+
+  // Revenue leak estimate USD/month
+  revenueLeakEstimate Float @default(0)
+
+  // Relations
+  issues              Issue[]
+  aiInsights          AiInsight[]
+  competitorBenchmarks CompetitorBenchmark[]
+
+  @@index([url])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum AuditStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model Issue {
+  id               String        @id @default(uuid())
+  auditId          String
+  audit            Audit         @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  category         String
+  title            String
+  description      String        @db.Text
+  businessImpact   String        @db.Text
+  technicalDetails String        @db.Text
+  recommendation   String        @db.Text
+  severity         IssueSeverity
+  estimatedGain    String
+  revenueImpact    String?
+  priority         Int           @default(0)
+  createdAt        DateTime      @default(now())
+
+  @@index([auditId])
+  @@index([severity])
+}
+
+enum IssueSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  INFO
+}
+
+model AiInsight {
+  id            String   @id @default(uuid())
+  auditId       String
+  audit         Audit    @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  category      String
+  headline      String
+  detail        String   @db.Text
+  priorityScore Int      @default(0)
+  revenueImpact String
+  quickWin      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  @@index([auditId])
+}
+
+model CompetitorBenchmark {
+  id             String @id @default(uuid())
+  auditId        String
+  audit          Audit  @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  metric         String
+  yourScore      Float
+  industryAvg    Float
+  topPerformer   Float
+
+  @@index([auditId])
+}
